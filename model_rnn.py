@@ -1,19 +1,11 @@
-import tensorflow as tf
-import numpy as np
-import random
-import time
-import os
 import numpy as np
 import os
 import random
 import re
-import shutil
 import time
 import tensorflow as tf
-
 import matplotlib.pyplot as plt
 
-from tensorflow.contrib.tensorboard.plugins import projector
 
 class LstmRNN(object):
     def __init__(self, sess, crypto_count,
@@ -59,7 +51,7 @@ class LstmRNN(object):
         #self.symbols = tf.placeholder(tf.int32, [None, 1], name='coin_labels')
 
         self.inputs = tf.placeholder(tf.float32, [None, self.num_steps, self.input_size], name="inputs")
-        self.targets = tf.placeholder(tf.float32, [None], name="targets")
+        self.targets = tf.placeholder(tf.float32, [None,self.output_size], name="targets")
 
         def _create_one_cell():
             lstm_cell = tf.contrib.rnn.LSTMCell(self.lstm_size, state_is_tuple=True)
@@ -73,15 +65,17 @@ class LstmRNN(object):
 
         self.inputs_with_embed = tf.identity(self.inputs)
         self.embed_matrix_summ = None
-        
+        #val = tf.Variable()
         # Run dynamic RNN
         val, state_ = tf.nn.dynamic_rnn(cell, self.inputs_with_embed, dtype=tf.float32, scope="dynamic_rnn")
-
+        print(val.shape)
         # Before transpose, val.get_shape() = (batch_size, num_steps, lstm_size)
         # After transpose, val.get_shape() = (num_steps, batch_size, lstm_size)
         val = tf.transpose(val, [1, 0, 2])
+        print(val.shape)
 
         last = tf.gather(val, int(val.get_shape()[0]) - 1, name="lstm_state")
+        #last = tf.dynamic_partition(val, int(val.get_shape()[0]) - 1,1, name="lstm_state")
         print("Laast")
         print(last.shape)
         ws = tf.Variable(tf.truncated_normal([self.lstm_size, self.output_size]), name="w")
@@ -108,7 +102,7 @@ class LstmRNN(object):
         self.saver = tf.train.Saver()
 
 
-    def train(self, dataset_list, config, to):
+    def train(self, dataset_list, config, to, i):
 
         self.merged_sum = tf.summary.merge_all()
         self.sess.run(tf.global_variables_initializer())
@@ -174,14 +168,13 @@ class LstmRNN(object):
                     train_loss, _, train_merged_sum = self.sess.run(
                         [self.loss, self.optim, self.merged_sum], train_data_feed)
 
-
-                    if np.mod(global_step, len(dataset_list) * 200 / config.input_size) == 1:
-                        test_loss, test_pred = self.sess.run([self.loss_test, self.pred], test_data_feed)
-                        print("Step:%d [Epoch:%d] [Learning rate: %.6f] train_loss:%.6f test_loss:%.6f",
-                            global_step, epoch, learning_rate, train_loss, test_loss)
-                        print(test_pred, merged_test_y)
-                        print(test_pred.shape)
-                        print(merged_test_y.shape)
+                    print(global_step,len(dataset_list),config.input_size)
+                    #if np.mod(global_step, len(dataset_list) * 200 / config.input_size) == 1:
+                    test_loss, test_pred = self.sess.run([self.loss_test, self.pred], test_data_feed)
+                    print("Step:%d [Epoch:%d] [Learning rate: %.6f] train_loss:%.6f test_loss:%.6f", global_step, epoch, learning_rate, train_loss, test_loss)
+                    print(test_pred, merged_test_y)
+                    print(test_pred.shape)
+                    print(merged_test_y.shape)
 
 
                         #plt.savefig("/home/maverick/PycharmProjects/CryptoCompare/BTC Plots/" + str(epoch) + "-ETH.png", format='png', bbox_inches='tight', transparent=True)
@@ -196,14 +189,11 @@ class LstmRNN(object):
         plt.plot(dates, test_pred, 'red')
         plt.xlabel("day")
         plt.ylabel("normalized price")
-        plt.savefig("/home/maverick/PycharmProjects/CryptoCompare/"+to+"new.jpg", format='jpg', bbox_inches='tight')
+        plt.savefig("C:\\Users\\SHYAM\\OneDrive\\UBUNTU LATEST BACKUP\\trial.png", format='png', bbox_inches='tight')
         #plt.show()
 
-
-
-
-
         final_pred, final_loss = self.sess.run([self.pred, self.loss], test_data_feed)
+        print(final_loss,final_pred)
 
         # Save the final model
         self.save(global_step,to)
@@ -237,7 +227,7 @@ class LstmRNN(object):
         model_name = self.model_name + ".model"
         self.saver.save(
             self.sess,
-            os.path.join("/home/maverick/PycharmProjects/CryptoCompare/"+to+" Model", model_name),
+            os.path.join("C:\\Users\\SHYAM\\OneDrive\\UBUNTU LATEST BACKUP\\model", model_name),
             global_step=step
         )
 

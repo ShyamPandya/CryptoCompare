@@ -35,13 +35,12 @@ def send_to_database(result, fsym, tsym):
         open = data["Data"][j]["open"]
         volumeFrom = data["Data"][j]["volumefrom"]
         id = uuid.uuid4()
-        if time > '2018-03-10 05:30:00':
-            add_to_database(id, time, open, high, low, close, volumeFrom, fsym, tsym)
+        add_to_database(id, time, open, high, low, close, volumeFrom, fsym, tsym)
 
 
 
 def add_to_database(id, time, open, high, low, close, volumeFrom, fsym, tsym):
-    connection = mysql.connector.connect(user='root', database='CryptoCompare', password='Greenacres29')
+    connection = mysql.connector.connect(user='root', database='CryptoCompare', password='xxxx')
     cursor = connection.cursor()
     # Create a new record
     sql = "INSERT INTO `storage` (`ref_id`,`time`,`open`,`high`,`low`,`close`,`volume_from`,`fsym`,`tsym`) VALUES (%s, %s,%s, %s, %s, %s, %s, %s, %s)"

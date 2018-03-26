@@ -8,12 +8,12 @@ import matplotlib.pyplot as plt
 
 flags = tf.app.flags
 flags.DEFINE_integer("crypto_count", 1, "Crypto count [1]")
-flags.DEFINE_integer("input_size", 4, "Input size [4]")
-flags.DEFINE_integer("output_size", 1, "Output size [1]")
+flags.DEFINE_integer("input_size", 7, "Input size [4]")
+flags.DEFINE_integer("output_size", 4, "Output size [1]")
 flags.DEFINE_integer("num_steps", 1, "Num of steps [30]")
 flags.DEFINE_integer("num_layers", 1, "Num of layer [1]")
 flags.DEFINE_integer("lstm_size", 128, "Size of one LSTM cell [128]")
-flags.DEFINE_integer("batch_size", 64, "The size of batch images [64]")
+flags.DEFINE_integer("batch_size", 62, "The size of batch images [64]")
 flags.DEFINE_float("keep_prob", 0.8, "Keep probability of dropout layer. [0.8]")
 flags.DEFINE_float("init_learning_rate", 0.001, "Initial learning rate at early stage. [0.001]")
 flags.DEFINE_float("learning_rate_decay", 0.99, "Decay rate of learning rate. [0.99]")
@@ -50,7 +50,7 @@ def main(_):
             output_size=FLAGS.output_size
         )
 
-        coin_data_list1 = load_data(
+        '''coin_data_list1 = load_data(
         FLAGS.input_size,
         FLAGS.num_steps,
         'ETH',
@@ -70,7 +70,7 @@ def main(_):
             'CND',
             'USD',
             target_symbol=FLAGS.stock_symbol
-        )
+        )'''
         coin_data_list4 = load_data(
             FLAGS.input_size,
             FLAGS.num_steps,
@@ -80,10 +80,10 @@ def main(_):
         )
 
     if FLAGS.train:
-        rnn_model.train(coin_data_list1, FLAGS,'ETH')
-        rnn_model.train(coin_data_list2, FLAGS,'XRP')
-        rnn_model.train(coin_data_list3, FLAGS,'CND')
-        rnn_model.train(coin_data_list4, FLAGS,'BTC')
+        #rnn_model.train(coin_data_list1, FLAGS,'ETH')
+        #rnn_model.train(coin_data_list2, FLAGS,'XRP')
+        #rnn_model.train(coin_data_list3, FLAGS,'CND')
+        rnn_model.train(coin_data_list4, FLAGS,'BTC',1)
     else:
         if not rnn_model.load()[0]:
             raise Exception("[!] Train a model first, then run test mode")
