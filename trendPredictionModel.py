@@ -114,6 +114,9 @@ class LstmRNN(object):
         self.loss_test_sum = tf.summary.scalar("loss_mse_test", self.loss_test)
         self.learning_rate_sum = tf.summary.scalar("learning_rate", self.learning_rate)
 
+        self.correct = tf.equal(tf.argmax(self.pred, 1), tf.argmax(self.targets, 1))
+        self.accuracy = tf.reduce_mean(tf.cast(self.correct, tf.float32))
+
         self.t_vars = tf.trainable_variables()
         self.saver = tf.train.Saver()
 
@@ -191,14 +194,15 @@ class LstmRNN(object):
                         [self.loss, self.optim, self.merged_sum], train_data_feed)
                     test_loss, test_pred = self.sess.run([self.loss_test, self.pred], test_data_feed)
                     print("Step:%d [Epoch:%d] [Learning rate: %.6f] train_loss:%.6f test_loss:%.6f", global_step, epoch,
-                          learning_rate, train_loss)
-                    correct = tf.equal(tf.argmax(self.pred, 1), tf.argmax(merged_test_y, 1))
-                    accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
-                    print('Accuracy on the overall test set is :', accuracy.eval(test_data_feed))
+                          learning_rate, train_loss, test_loss)
+
+
 
 
         final_pred, final_loss = self.sess.run([self.pred, self.loss], test_data_feed)
         self.save(global_step)
+        print('Accuracy on the overall test set is :' + str(
+            sess.run(self.accuracy, feed_dict=test_data_feed) * 100) + '%')
         #self.plot(dates, merged_test_y, test_pred, i)
         return final_pred, final_loss
 
@@ -221,7 +225,7 @@ class LstmRNN(object):
         model_name = self.model_name + ".model"
         self.saver.save(
             self.sess,
-            os.path.join(base_path_pandu+"RnnModel", model_name),
+            os.path.join(base_path_pandu+"RnnModel_FINAL", model_name),
             global_step=step
         )
 
@@ -232,11 +236,11 @@ class LstmRNN(object):
 
 
     def load(self, sess, data, config):
-        ckpt = tf.train.get_checkpoint_state(base_path_pandu+"RnnModel")
+        ckpt = tf.train.get_checkpoint_state(base_path_pandu+"RnnModel_FINAL")
         print(ckpt)
         if ckpt and ckpt.model_checkpoint_path:
             ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
-            self.saver.restore(sess, os.path.join(base_path_pandu+"RnnModel", ckpt_name))
+            self.saver.restore(sess, os.path.join(base_path_pandu+"RnnModel_FINAL", ckpt_name))
             counter = int(next(re.finditer("(\d+)(?!.*\d)", ckpt_name)).group(0))
             final_pred, final_loss = self.train(sess,data, config)
 
@@ -251,11 +255,11 @@ class LstmRNN(object):
 
 
     def predict(self, sess, data):
-        ckpt = tf.train.get_checkpoint_state(base_path_pandu+"RnnModel")
+        ckpt = tf.train.get_checkpoint_state(base_path_pandu+"RnnModel_FINAL")
         print(ckpt)
         if ckpt and ckpt.model_checkpoint_path:
             ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
-            self.saver.restore(sess, os.path.join(base_path_pandu+"RnnModel", ckpt_name))
+            self.saver.restore(sess, os.path.join(base_path_pandu+"RnnModel_FINAL", ckpt_name))
             counter = int(next(re.finditer("(\d+)(?!.*\d)", ckpt_name)).group(0))
             #self.train(sess,data, configs, i=i)
             test_data_feed = {

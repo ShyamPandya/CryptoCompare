@@ -25,7 +25,7 @@ flags.DEFINE_float("keep_prob", 0.9, "Keep probability of dropout layer. [0.8]")
 flags.DEFINE_float("init_learning_rate", 0.001, "Initial learning rate at early stage. [0.001]")
 flags.DEFINE_float("learning_rate_decay", 0.99, "Decay rate of learning rate. [0.99]")
 flags.DEFINE_integer("init_epoch", 10, "Num. of epoches considered as early stage. [5]")
-flags.DEFINE_integer("max_epoch", 300, "Total training epoches. [50]")
+flags.DEFINE_integer("max_epoch", 1000, "Total training epoches. [50]")
 flags.DEFINE_integer("embed_size", None, "If provided, use embedding vector of this size. [None]")
 flags.DEFINE_string("stock_symbol", None, "Target stock symbol [None]")
 flags.DEFINE_integer("sample_size", 4, "Number of stocks to plot during training. [4]")
@@ -58,7 +58,7 @@ def load_data(input_size, num_steps,training_data, labels, target_symbol=None, t
 
 def train_rnn(df, y, i):
     #result = pd.DataFrame(columns= ['Output', 'MSE'])
-
+    tf.reset_default_graph()
     with tf.Session() as sess:
         rnn_model_new = LstmRNN(
             sess,
@@ -90,7 +90,7 @@ def train_rnn(df, y, i):
         print(i)
         print(final_pred)
         print(final_loss)
-    tf.reset_default_graph()
+        return final_pred, final_loss
     #print(result)
     #return result
 
@@ -101,6 +101,7 @@ def train_rnn(df, y, i):
 
 
 def predict_rnn(df):
+    tf.reset_default_graph()
     with tf.Session() as sess:
         rnn_model_new = LstmRNN(
             sess,

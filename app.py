@@ -19,11 +19,9 @@ from mainModel import train_rnn
 from RandomForestClassification import trainTrendPredictionModel
 from AdaptiveBoosting import predictTrend
 from mainModel import predict_rnn
+import csv
 
 
-connection = psycopg2.connect(
-    "postgres://popo:weareawesome@popo-server.ckhrqovrxtw4.us-east-1.rds.amazonaws.com:5432/coins")
-cur = connection.cursor()
 
 twitter_url = 'https://poposerver.herokuapp.com/twitter/s'
 
@@ -35,7 +33,6 @@ twitter_url = 'https://poposerver.herokuapp.com/twitter/s'
 table_name = ["ada_btc_1h",
               "ada_eth_1h",
               "aion_btc_1h",
-              "aion_eth_1h",
               "bnb_btc_1h",
               "bnb_eth_1h",
               "cnd_btc_1h",
@@ -46,7 +43,6 @@ table_name = ["ada_btc_1h",
               "eos_eth_1h",
               "eth_btc_1h",
               "gas_btc_1h",
-              "icx_eth_1h",
               "iota_btc_1h",
               "iota_eth_1h",
               "ltc_btc_1h",
@@ -56,7 +52,6 @@ table_name = ["ada_btc_1h",
               "neo_btc_1h",
               "neo_eth_1h",
               "ont_btc_1h",
-              "ont_eth_1h",
               "poe_eth_1h",
               "rpx_btc_1h",
               "trx_btc_1h",
@@ -267,7 +262,7 @@ def nextPriceTraining(train_df, label_df, j):
         train_df['twitterTrend'].max()]])
     highest_values_dataframe.columns = ['AverageDirectionalIndex', 'Momentum', 'volume', 'MoneyFlowIndex', 'RateOfChange', 'closePrice', 'highPrice', 'lowPrice', 'volatility', 'openPrice',  'trendChangeTime', 'twitterTrend']
 
-    train_df = train_df.drop(['level_0', 'index', 'AverageDirectionalIndex', 'Momentum', 'MoneyFlowIndex', 'RateOfChange', 'start_time', 'volatility'], 1)
+    train_df = train_df.drop(['level_0', 'index', 'AverageDirectionalIndex', 'Momentum', 'MoneyFlowIndex', 'RateOfChange', 'volatility', 'start_time'], 1)
     label_df = label_df.drop(['level_0','index','trend', 'AverageDirectionalIndex', 'Momentum','volume',
      'MoneyFlowIndex', 'RateOfChange', 'highPrice', 'lowPrice', 'volatility','openPrice', 'start_time', 'end_time'], 1)
 
@@ -281,8 +276,8 @@ def nextPriceTraining(train_df, label_df, j):
 
     label_df['trendChangeTime'] = label_df['trendChangeTime'] / label_df['trendChangeTime'].max()
 
-    train_rnn(train_df, label_df, j)
-    return highest_values_dataframe
+    final_pred, final_loss = train_rnn(train_df, label_df, j)
+    return highest_values_dataframe, final_loss, final_pred
 
 def takeClosest(myList, myNumber):
     myList = [float(i) for i in myList]
@@ -343,41 +338,45 @@ def predictions(dataFrame, highestValues):
     train_df, label_df = appendTwitterSentiments(dataFrame, dataFrame.iloc[1:])
     feed_df = train_df.tail(1)
     nextTrend_startTime = feed_df['end_time'].reset_index()['end_time']
-    feed_df['AverageDirectionalIndex'] = feed_df['AverageDirectionalIndex'] / highestValues['AverageDirectionalIndex'][0]
-    feed_df['Momentum'] = feed_df['Momentum'] / highestValues['Momentum'][0]
-    feed_df['volume'] = feed_df['volume'] / highestValues['volume'][0]
-    feed_df['MoneyFlowIndex'] = feed_df['MoneyFlowIndex'] / highestValues['MoneyFlowIndex'][0]
-    feed_df['RateOfChange'] = feed_df['RateOfChange'] / highestValues['RateOfChange'][0]
-    feed_df['closePrice'] = feed_df['closePrice'] / highestValues['closePrice'][0]
-    feed_df['highPrice'] = feed_df['highPrice'] / highestValues['highPrice'][0]
-    feed_df['lowPrice'] = feed_df['lowPrice'] / highestValues['lowPrice'][0]
-    feed_df['openPrice'] = feed_df['openPrice'] / highestValues['openPrice'][0]
-    feed_df['trendChangeTime'] = feed_df['trendChangeTime'] / highestValues['trendChangeTime'][0]
-    feed_df['twitterTrend'] = feed_df['twitterTrend'] / highestValues['twitterTrend'][0]
+    feed_df['AverageDirectionalIndex'] = feed_df['AverageDirectionalIndex'] / highestValues['AverageDirectionalIndex'].loc[0]
+    feed_df['Momentum'] = feed_df['Momentum'] / highestValues['Momentum'].loc[0]
+    feed_df['volume'] = feed_df['volume'] / highestValues['volume'].loc[0]
+    feed_df['MoneyFlowIndex'] = feed_df['MoneyFlowIndex'] / highestValues['MoneyFlowIndex'].loc[0]
+    feed_df['RateOfChange'] = feed_df['RateOfChange'] / highestValues['RateOfChange'].loc[0]
+    feed_df['closePrice'] = feed_df['closePrice'] / highestValues['closePrice'].loc[0]
+    feed_df['highPrice'] = feed_df['highPrice'] / highestValues['highPrice'].loc[0]
+    feed_df['lowPrice'] = feed_df['lowPrice'] / highestValues['lowPrice'].loc[0]
+    feed_df['openPrice'] = feed_df['openPrice'] / highestValues['openPrice'].loc[0]
+    feed_df['trendChangeTime'] = feed_df['trendChangeTime'] / highestValues['trendChangeTime'].loc[0]
+    feed_df['twitterTrend'] = feed_df['twitterTrend'] / highestValues['twitterTrend'].loc[0]
 
 
     trend_prediction = predictTrend(feed_df.drop(['level_0', 'index', 'closePrice', 'highPrice', 'lowPrice', 'openPrice', 'end_time', 'start_time', 'nextTrend', 'twitterTrend'], 1))
     nextTrend = feed_df['nextTrend'] = trend_prediction[0]
     if nextTrend == -1:
-        nextTrend = 0
-    predictions = predict_rnn(feed_df.drop(['level_0', 'index', 'AverageDirectionalIndex', 'Momentum', 'MoneyFlowIndex', 'RateOfChange', 'start_time','volatility', 'end_time'], 1))
+        nextCharTrend = 'D'
+    else:
+        nextCharTrend = 'U'
+    predictions = predict_rnn(feed_df.drop(['level_0', 'index', 'start_time', 'AverageDirectionalIndex', 'Momentum', 'MoneyFlowIndex', 'RateOfChange', 'volatility', 'end_time'], 1))
     unformatted_price = predictions[0][0] * highestValues['closePrice']
     unformatted_time = predictions[0][1] * highestValues['trendChangeTime']
     nextTrend_endTime = nextTrend_startTime[0] + math.floor(unformatted_time[0])*epoch_to_hours
     nextTrend_Price = abs(unformatted_price)
-    return str(nextTrend), nextTrend_startTime[0], int(nextTrend_endTime), nextTrend_Price[0], math.floor(unformatted_time[0])
+    return nextCharTrend, nextTrend_startTime[0], int(nextTrend_endTime), abs(math.floor(unformatted_time[0])), nextTrend_Price[0]
 
 
 
 # # Main
-
-# In[112]:
-cur.execute("select * from prediction")
-x = pd.DataFrame(list(cur.fetchall()))
-print(x)
+#with open('predictions_ToBeUploaded.csv', 'a') as writeFile:
+    #writer = csv.writer(writeFile)
+    #writer.writerow(['Training Loss', 'From currency', 'To currency', 'Trend Start time', 'Trend end time', 'Price ' 'Trend duration', 'Trend'])
+#writeFile.close()
 final_dataframe = pd.DataFrame()
 final_label = pd.DataFrame()
-for i in range(12, 13):
+for i in range(0, len(table_name)):
+    connection = psycopg2.connect(
+        "postgres://popo:weareawesome@popo-server.ckhrqovrxtw4.us-east-1.rds.amazonaws.com:5432/coins")
+    cur = connection.cursor()
     table = table_name[i]
     print(table)
     currencies = table.split('_')
@@ -401,11 +400,18 @@ for i in range(12, 13):
     label_df = label_df.reset_index()
     #nextTrendTraining(train_df, label_df)
 
-    highestValues = nextPriceTraining(train_df, label_df, i)
-    nextTrend, nextTrend_startTime, nextTrend_endTime, nextTrend_Price, nextTrendChangeTime = predictions(train_df, highestValues)
+    highestValues, final_training_loss, final_pred = nextPriceTraining(train_df, label_df, i)
+    nextTrend, nextTrend_startTime, nextTrend_endTime, nextTrendChangeTime, nextTrend_Price = predictions(train_df, highestValues)
 
+    #with open('predictions_ToBeUploaded.csv', 'a') as writeFile:
+        #writer = csv.writer(writeFile)
+        #writer.writerow([final_training_loss, _from, _to, nextTrend_startTime, nextTrend_endTime, nextTrend_Price, nextTrendChangeTime, nextTrend])
+
+    #writeFile.close()
+    
     cur.execute("insert into prediction(_from, _to, start_time, end_time, price, trend_change_time, trend) values (%s, %s, %s, %s, %s, %s, %s)", (_from, _to, nextTrend_startTime, nextTrend_endTime, nextTrend_Price, nextTrendChangeTime, nextTrend))
     connection.commit()
+    connection.close()
 
 
 
