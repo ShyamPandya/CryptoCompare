@@ -13,11 +13,8 @@ from pyti.rate_of_change import rate_of_change
 from pyti.momentum import momentum
 from bisect import bisect_left
 from mainModel import train_rnn
-#from AdaptiveBoosting import trainTrendPredictionModel
-#from SVMScikit import trainTrendPredictionModel
-#from KNearestNeighbors import trainTrendPredictionModel
 from RandomForestClassification import trainTrendPredictionModel
-from AdaptiveBoosting import predictTrend
+from RandomForestClassification import predictTrend
 from mainModel import predict_rnn
 import csv
 
@@ -29,36 +26,6 @@ twitter_url = 'https://poposerver.herokuapp.com/twitter/s'
 
 # In[105]:
 
-
-table_name = ["ada_btc_1h",
-              "ada_eth_1h",
-              "aion_btc_1h",
-              "bnb_btc_1h",
-              "bnb_eth_1h",
-              "cnd_btc_1h",
-              "cnd_eth_1h",
-              "dash_eth_1h",
-              "dgd_btc_1h",
-              "eos_btc_1h",
-              "eos_eth_1h",
-              "eth_btc_1h",
-              "gas_btc_1h",
-              "iota_btc_1h",
-              "iota_eth_1h",
-              "ltc_btc_1h",
-              "ltc_eth_1h",
-              "mana_btc_1h",
-              "mana_eth_1h",
-              "neo_btc_1h",
-              "neo_eth_1h",
-              "ont_btc_1h",
-              "poe_eth_1h",
-              "rpx_btc_1h",
-              "trx_btc_1h",
-              "trx_eth_1h",
-              "xmr_eth_1h",
-              "xrp_btc_1h",
-              "xvg_btc_1h"]
 window_size = 24
 day = 0
 trend_reversal_threshold = 5  # if has been decreasing for x hrs
@@ -153,15 +120,7 @@ def preProcessCalculation(df, limit):
 
 
 def summary_days(df):
-    # print("lo")
     [adx, mfi, atr, obv, rocr, mom] = preProcessCalculation(df, window_size)
-    #volume_mean = df['volume'].mean()
-    #df['high'] = df['high'] / df['high'].max()
-    #df['low'] = df['low'] / df['low'].max()
-    #df['close'] = df['close'] / df['close'].max()
-    #df['volume'] = df['volume'] / df['volume'].max()
-    #df['open'] = df['open']/df['open'].max()
-    # df['volume'] = df['volume'] - volume_mean
     prev_index = 0
     i = 0
     trend_df = pd.DataFrame()
@@ -209,7 +168,6 @@ def summary_days(df):
     trend_df = trend_df.iloc[:-1]
     labels_df = labels_df.reset_index()
     trend_df['nextTrend'] = labels_df['trend']
-    #trend_df = normalizeRemainingFeatures(trend_df)
     return trend_df, labels_df
 
 
@@ -233,10 +191,7 @@ def normalizeRemainingFeatures(train_df):
     return train_df
 
 def nextTrendTraining(train_df, label_df):
-    #train_df = train_df.drop(['index', 'closePrice', 'highPrice', 'lowPrice', 'openPrice', 'end_time', 'start_time', 'nextTrend'], 1)
-    train_df = train_df.drop(
-       ['index', 'end_time', 'start_time', 'nextTrend'], 1)
-    #train_df = train_df.drop(['index', 'AverageDirectionalIndex', 'Momentum', 'MoneyFlowIndex', 'RateOfChange', 'end_time', 'start_time', 'nextTrend'], 1)
+    train_df = train_df.drop(['index', 'end_time', 'start_time', 'nextTrend'], 1)
     label_df = label_df.drop(['level_0', 'index', 'AverageDirectionalIndex', 'Momentum','volume', 'start_time', 'end_time',
                         'MoneyFlowIndex', 'RateOfChange','closePrice', 'highPrice', 'lowPrice', 'volatility','openPrice', 'trendChangeTime'], 1)
     trainTrendPredictionModel(train_df, label_df)
@@ -260,7 +215,8 @@ def nextPriceTraining(train_df, label_df, j):
         train_df['openPrice'].max(),
         train_df['trendChangeTime'].max(),
         train_df['twitterTrend'].max()]])
-    highest_values_dataframe.columns = ['AverageDirectionalIndex', 'Momentum', 'volume', 'MoneyFlowIndex', 'RateOfChange', 'closePrice', 'highPrice', 'lowPrice', 'volatility', 'openPrice',  'trendChangeTime', 'twitterTrend']
+    highest_values_dataframe.columns = ['AverageDirectionalIndex', 'Momentum', 'volume', 'MoneyFlowIndex', 'RateOfChange', 'closePrice', 'highPrice', 
+    'lowPrice', 'volatility', 'openPrice',  'trendChangeTime', 'twitterTrend']
 
     train_df = train_df.drop(['level_0', 'index', 'AverageDirectionalIndex', 'Momentum', 'MoneyFlowIndex', 'RateOfChange', 'volatility', 'start_time'], 1)
     label_df = label_df.drop(['level_0','index','trend', 'AverageDirectionalIndex', 'Momentum','volume',
@@ -367,24 +323,18 @@ def predictions(dataFrame, highestValues):
 
 
 # # Main
-#with open('predictions_ToBeUploaded.csv', 'a') as writeFile:
-    #writer = csv.writer(writeFile)
-    #writer.writerow(['Training Loss', 'From currency', 'To currency', 'Trend Start time', 'Trend end time', 'Price ' 'Trend duration', 'Trend'])
-#writeFile.close()
-final_dataframe = pd.DataFrame()
-final_label = pd.DataFrame()
-for i in range(0, len(table_name)):
+def  main(_from, _to):
+	final_dataframe = pd.DataFrame()
+	final_label = pd.DataFrame()
     connection = psycopg2.connect(
         "postgres://popo:weareawesome@popo-server.ckhrqovrxtw4.us-east-1.rds.amazonaws.com:5432/coins")
     cur = connection.cursor()
-    table = table_name[i]
-    print(table)
-    currencies = table.split('_')
-    _from = currencies[0]
-    _to = currencies[1]
+    print("From: ", _from)
+    print("To: ", _to)
+    table_name = _from + '_' + _to + '_1h'
     cur.execute(
         "select cast(high as real), cast(low as real), cast(close as real), cast(_id as bigint), cast(volume as real), cast(open as real) from (select * from {} order by cast(_id as bigint) desc) as data order by cast(_id as bigint) asc;".format(
-            table))
+            table_name))
     df = pd.DataFrame(list(cur.fetchall()))
     print(len(df))
     df.columns = ['high', 'low', 'close', 'time', 'volume', 'open']
@@ -398,21 +348,18 @@ for i in range(0, len(table_name)):
 
     train_df = train_df.reset_index()
     label_df = label_df.reset_index()
-    #nextTrendTraining(train_df, label_df)
 
     highestValues, final_training_loss, final_pred = nextPriceTraining(train_df, label_df, i)
     nextTrend, nextTrend_startTime, nextTrend_endTime, nextTrendChangeTime, nextTrend_Price = predictions(train_df, highestValues)
-
-    #with open('predictions_ToBeUploaded.csv', 'a') as writeFile:
-        #writer = csv.writer(writeFile)
-        #writer.writerow([final_training_loss, _from, _to, nextTrend_startTime, nextTrend_endTime, nextTrend_Price, nextTrendChangeTime, nextTrend])
-
-    #writeFile.close()
     
     cur.execute("insert into prediction(_from, _to, start_time, end_time, price, trend_change_time, trend) values (%s, %s, %s, %s, %s, %s, %s)", (_from, _to, nextTrend_startTime, nextTrend_endTime, nextTrend_Price, nextTrendChangeTime, nextTrend))
     connection.commit()
     connection.close()
 
+if __name__ == "__main__":
+	_from = int(sys.argv[1])
+    _to = int(sys.argv[2])
+	main(_from, _to)
 
 
 
